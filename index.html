@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YASSER TECH TV</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script type="module" src="https://www.gstatic.com/firebasejs/10.6.2/firebase-app.js"></script>
+<script type="module" src="https://www.gstatic.com/firebasejs/10.6.2/firebase-auth.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
+body,html{height:100%;background:#000;color:#fff;overflow-x:hidden;}
+video.bg-video{position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:-2;filter:brightness(0.25);}
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:-1;}
+.sparkle{position:absolute;width:8px;height:8px;background:#ffc800;border-radius:50%;opacity:0.7;animation:float 6s linear infinite;}
+@keyframes float{0%{transform:translateY(0) scale(1);}50%{transform:translateY(-100px) scale(1.3);}100%{transform:translateY(0) scale(1);}}
+#welcome{height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:20px;}
+#welcome h1{font-size:4rem;color:#ffc800;text-shadow:0 0 20px #ffcc00;animation:pulse 2s infinite alternate;}
+@keyframes pulse{0%{color:#ffc800;}50%{color:#fff;}100%{color:#ffc800;}}
+#welcome p{font-size:1.3rem;margin:20px 0;opacity:.9;animation:bounce 2s infinite alternate;}
+@keyframes bounce{0%{transform:translateY(0);}50%{transform:translateY(-10px);}100%{transform:translateY(0);}}
+#welcome button{padding:15px 35px;font-size:1.2rem;border:none;border-radius:30px;background:#ffc800;color:#000;cursor:pointer;font-weight:bold;transition:0.3s;}
+#welcome button:hover{transform:scale(1.05);background:#ffb800;}
+#login{display:none;text-align:center;padding:50px 20px;}
+#login input{padding:12px;margin:10px 0;width:250px;border-radius:20px;border:none;outline:none;}
+#login button{padding:12px 25px;margin:10px;background:#ffc800;border:none;border-radius:20px;cursor:pointer;font-weight:bold;}
+#login button:hover{background:#ffb800;}
+#main{display:none;padding:20px 5%;}
+#adminPanel{display:none;padding:20px 5%;background:#111;border-radius:20px;margin:20px;}
+h2{color:#ffc800;margin:20px 0;}
+.search-box{display:flex;justify-content:center;max-width:600px;margin:20px auto;gap:10px;}
+.search-box input{flex:1;padding:12px;border-radius:20px 0 0 20px;border:none;outline:none;font-size:1rem;}
+.search-box button{padding:12px 20px;border:none;background:#ffc800;cursor:pointer;font-weight:bold;border-radius:0 20px 20px 0;}
+.search-box button:hover{background:#ffb800;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px;margin-bottom:50px;}
+.card{background:rgba(255,255,255,0.05);border-radius:15px;overflow:hidden;transition:.3s;}
+.card:hover{transform:translateY(-5px) scale(1.03);box-shadow:0 0 20px #ffcc00;}
+.card img{width:100%;height:270px;object-fit:cover;}
+.card .info{padding:10px;}
+.card .info h4{font-size:1rem;}
+.card .info small{opacity:.7;}
+.card .info button{display:block;margin-top:10px;width:100%;padding:8px;background:#ffc800;color:#000;border-radius:20px;font-weight:bold;border:none;cursor:pointer;}
+.card .info button:hover{background:#ffb800;}
+footer{text-align:center;padding:30px 20px;opacity:.9;font-size:.9rem;}
+footer a{display:inline-block;margin-top:5px;background:#25D366;color:#fff;padding:10px 15px;border-radius:20px;text-decoration:none;font-weight:bold;transition:.3s;}
+footer a:hover{background:#1ebe57;}
+</style>
+</head>
+<body>
+
+<video class="bg-video" autoplay muted loop>
+  <source src="https://cdn.coverr.co/videos/coverr-watching-tv-1564/1080p.mp4" type="video/mp4">
+</video>
+<div class="overlay"></div>
+
+<div id="welcome">
+  <h1>YASSER TECH TV</h1>
+  <p>Watch & Download Movies After Login</p>
+  <button onclick="showLogin()">Enter Site</button>
+</div>
+
+<div id="login">
+  <h2>Login to Access Downloads</h2>
+  <input type="email" id="email" placeholder="Email"><br>
+  <input type="password" id="password" placeholder="Password"><br>
+  <button onclick="loginEmail()">Login</button><br>
+  <button onclick="signupEmail()">Sign Up</button><br>
+  <button onclick="loginGoogle()">Login with Google</button>
+</div>
+
+<div id="main">
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Search movie or TV show...">
+    <button onclick="searchMovie()">🔍 Search</button>
+  </div>
+  <h2>Movies & TV Shows</h2>
+  <div id="loading" style="display:none;text-align:center;">Searching...</div>
+  <div class="grid" id="moviesGrid"></div>
+</div>
+
+<div id="adminPanel">
+  <h2>Admin Dashboard - Registered Users</h2>
+  <ul id="userList"></ul>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<footer>
+© 2026 YASSER TECH SOLUTIONS <br>
+📞 Owner: +255 691 548 458 <br>
+<a href="https://whatsapp.com/channel/0029Vb7BkaP7dmeg0yZiCS1I" target="_blank">Join WhatsApp Channel</a>
+</footer>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.6.2/firebase-auth.js";
+
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyDB42zzsh2o95pt7L4zr5ReS6Z6suKhEG0",
+  authDomain: "yasser-tech-movies.firebaseapp.com",
+  projectId: "yasser-tech-movies",
+  storageBucket: "yasser-tech-movies.appspot.com",
+  messagingSenderId: "977935323619",
+  appId: "1:977935323619:web:ed94169e00cb340f4c90d6",
+  measurementId: "G-VPNMSYPTPV"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+const API_KEY = "f6b681ff"; // OMDB
+
+// Admin email
+const adminEmail = "youremail@example.com"; // <-- Change to your admin email
+
+function showLogin(){
+  document.getElementById('welcome').style.display='none';
+  document.getElementById('login').style.display='block';
+}
+
+function signupEmail(){
+  const email=document.getElementById('email').value;
+  const password=document.getElementById('password').value;
+  createUserWithEmailAndPassword(auth,email,password)
+  .then(()=>alert("Sign Up Successful! Login now."))
+  .catch(err=>alert(err.message));
+}
+
+function loginEmail(){
+  const email=document.getElementById('email').value;
+  const password=document.getElementById('password').value;
+  signInWithEmailAndPassword(auth,email,password)
+  .catch(err=>alert(err.message));
+}
+
+function loginGoogle(){
+  signInWithPopup(auth,provider).catch(err=>alert(err.message));
+}
+
+function logout(){
+  signOut(auth);
+}
+
+// Auth State
+onAuthStateChanged(auth,user=>{
+  if(user){
+    if(user.email===adminEmail){
+      document.getElementById('login').style.display='none';
+      document.getElementById('main').style.display='none';
+      document.getElementById('adminPanel').style.display='block';
+      showUsers([user.email]); // initially just admin
+      console.log("Admin logged in:",user.email);
+    } else{
+      document.getElementById('login').style.display='none';
+      document.getElementById('adminPanel').style.display='none';
+      document.getElementById('main').style.display='block';
+      loadLatestMovies();
+      console.log("User logged in:",user.email);
+    }
+  } else{
+    document.getElementById('login').style.display='block';
+    document.getElementById('main').style.display='none';
+    document.getElementById('adminPanel').style.display='none';
+  }
+});
+
+// Admin users list (demo purposes, real app should use database)
+const registeredUsers = [];
+
+function showUsers(users){
+  const ul=document.getElementById('userList');
+  ul.innerHTML='';
+  users.forEach(u=>{
+    const li=document.createElement('li');
+    li.innerText=u;
+    ul.appendChild(li);
+  });
+}
+
+// Movie functions
+async function searchMovie(){
+  const query=document.getElementById('searchInput').value.trim();
+  if(!query) return;
+  document.getElementById('loading').style.display='block';
+  document.getElementById('moviesGrid').innerHTML='';
+  try{
+    const resM=await fetch(`https://www.omdbapi.com/?apikey=${API_KEY}&s=${encodeURIComponent(query)}&type=movie`);
+    const dataM=await resM.json();
+    const resT=await fetch(`https://www.omdbapi.com/?apikey=${API_KEY}&s=${encodeURIComponent(query)}&type=series`);
+    const dataT=await resT.json();
+    document.getElementById('loading').style.display='none';
+    const combined=[...(dataM.Search||[]), ...(dataT.Search||[])];
+    if(combined.length>0){
+      combined.forEach(item=>document.getElementById('moviesGrid').innerHTML+=createCard(item));
+    } else document.getElementById('moviesGrid').innerHTML="No results found.";
+  } catch(err){console.error(err);}
+}
+
+function createCard(item){
+  return `<div class="card">
+    <img src="${item.Poster!=="N/A"?item.Poster:'https://via.placeholder.com/300x450'}">
+    <div class="info">
+      <h4>${item.Title}</h4>
+      <small>${item.Year} • ${item.Type}</small>
+      <button onclick="window.open('https://www.google.com/search?q=watch+${encodeURIComponent(item.Title)}','_blank')">Watch / Download</button>
+    </div>
+  </div>`;
+}
+
+const latestMovies=["Avatar: The Way of Water","Black Panther: Wakanda Forever","Everything Everywhere All at Once"];
+async function loadLatestMovies(){
+  const grid=document.getElementById('moviesGrid');
+  grid.innerHTML="Loading latest movies...";
+  for(const title of latestMovies){
+    try{
+      const res=await fetch(`https://www.omdbapi.com/?apikey=${API_KEY}&t=${encodeURIComponent(title)}`);
+      const data=await res.json();
+      if(data.Response==="True") grid.innerHTML+=createCard(data);
+    } catch(err){console.error(err);}
+  }
+}
+</script>
+</body>
+  </html>
